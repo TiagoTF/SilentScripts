@@ -52,10 +52,9 @@ def SSHBruteforce():
 
 def IPScan():
 	rede = input("Rede:")
-	os.system("clear")
-	os.system(f"python3 net.py {rede}")
-	os.system("rm ficheiro.txt")
-	print("")
+	print("\n--------------------------------")
+	os.system("bash ipscan.sh " + rede + "\n")
+	print("--------------------------------\n")
 
 
 def exit():
