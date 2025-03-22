@@ -56,7 +56,6 @@ def IPScan():
 	os.system("bash ipscan.sh " + rede + "\n")
 	print("--------------------------------\n")
 
-
 def exit():
 	sys.exit()
 

